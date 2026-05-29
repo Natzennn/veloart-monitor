@@ -41,7 +41,7 @@ def select_option_by_text(page, selector, wanted_text):
         raise Exception(f"Nie znaleziono opcji: {wanted_text}")
 
     page.select_option(selector, value=value)
-    page.wait_for_timeout(4000)
+    page.wait_for_timeout(5000)
 
 
 def click_previous_month(page):
@@ -51,7 +51,7 @@ def click_previous_month(page):
         raise Exception("Nie znaleziono calendar-nav")
 
     page.mouse.click(nav["x"] + 25, nav["y"] + nav["height"] / 2)
-    page.wait_for_timeout(4000)
+    page.wait_for_timeout(5000)
 
 
 def check_veloart():
@@ -67,7 +67,7 @@ def check_veloart():
         )
 
         page.goto(URL, wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(10000)
+        page.wait_for_timeout(12000)
 
         try:
             page.get_by_text("Rozumiem").click(timeout=3000)
@@ -82,11 +82,15 @@ def check_veloart():
             "Veloart Warszawa"
         )
 
+        print("Wybrano lokalizację: Veloart Warszawa", flush=True)
+
         select_option_by_text(
             page,
             "#bookero-plugin-service",
             "Bikefitting Kompleksowy + Serwis Roweru - Warszawa"
         )
+
+        print("Wybrano usługę: Bikefitting Kompleksowy + Serwis Roweru - Warszawa", flush=True)
 
         try:
             select_option_by_text(
@@ -94,8 +98,9 @@ def check_veloart():
                 "#bookero-plugin-worker",
                 "Dowolny"
             )
+            print("Wybrano pracownika: Dowolny", flush=True)
         except Exception:
-            pass
+            print("Nie znaleziono pola pracownika albo nie trzeba wybierać.", flush=True)
 
         page.wait_for_selector(".calendar-nav", timeout=30000)
 
@@ -108,12 +113,16 @@ def check_veloart():
             text
         )
 
-        browser.close()
-
         if not match:
+            print("Nie znaleziono komunikatu o najbliższym terminie.", flush=True)
+            print("Fragment tekstu strony:", text[:1500], flush=True)
+            browser.close()
             return None
 
-        return datetime.fromisoformat(match.group(1) + " " + match.group(2))
+        found = datetime.fromisoformat(match.group(1) + " " + match.group(2))
+
+        browser.close()
+        return found
 
 
 notify("✅ Veloart Warszawa monitor uruchomiony. Szukam terminu przed 2026-08-05 09:00.")
