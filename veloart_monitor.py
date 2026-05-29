@@ -24,28 +24,35 @@ def notify(text):
     )
 
 
+def select_option_by_text(page, selector, wanted_text):
+    page.wait_for_selector(selector, timeout=30000)
+
+    value = page.locator(selector).evaluate(
+        """(select, wantedText) => {
+            const options = Array.from(select.options);
+            const option = options.find(o => o.textContent.trim().includes(wantedText));
+            if (!option) {
+                return null;
+            }
+            return option.value;
+        }""",
+        wanted_text,
+    )
+
+    if not value:
+        raise Exception(f"Nie znaleziono opcji: {wanted_text}")
+
+    page.select_option(selector, value=value)
+    page.wait_for_timeout(4000)
+
+
 def click_previous_month(page):
-    selectors = [
-        ".calendar-nav div:first-child",
-        ".calendar-nav > div:first-child",
-        ".calendar-nav svg:first-child",
-        ".calendar-nav i:first-child",
-    ]
-
-    for selector in selectors:
-        try:
-            page.locator(selector).first.click(timeout=3000)
-            return True
-        except Exception:
-            pass
-
-    # awaryjnie klikamy po współrzędnych w lewą strzałkę kalendarza
     nav = page.locator(".calendar-nav").bounding_box(timeout=10000)
-    if nav:
-        page.mouse.click(nav["x"] + 25, nav["y"] + nav["height"] / 2)
-        return True
+    if not nav:
+        raise Exception("Nie znaleziono calendar-nav")
 
-    return False
+    page.mouse.click(nav["x"] + 25, nav["y"] + nav["height"] / 2)
+    page.wait_for_timeout(4000)
 
 
 def check_veloart():
@@ -69,14 +76,35 @@ def check_veloart():
             pass
 
         page.wait_for_selector(".bookero-plugin-form", timeout=30000)
+
+        # 1. wymuś Warszawę
+        select_option_by_text(
+            page,
+            "#bookero-plugin-service-category",
+            "Veloart Warszawa"
+        )
+
+        # 2. wymuś konkretną usługę Warszawa
+        select_option_by_text(
+            page,
+            "#bookero-plugin-service",
+            "Bikefitting Kompleksowy + Serwis Roweru - Warszawa"
+        )
+
+        # 3. wymuś pracownika Dowolny, jeśli pole istnieje
+        try:
+            select_option_by_text(
+                page,
+                "#bookero-plugin-worker",
+                "Dowolny"
+            )
+        except Exception:
+            pass
+
         page.wait_for_selector(".calendar-nav", timeout=30000)
 
-        clicked = click_previous_month(page)
-
-        if not clicked:
-            raise Exception("Nie udało się kliknąć strzałki poprzedniego miesiąca")
-
-        page.wait_for_timeout(4000)
+        # kliknij poprzedni miesiąc, żeby pojawił się komunikat z najbliższym terminem
+        click_previous_month(page)
 
         text = page.locator("body").inner_text(timeout=10000)
 
@@ -88,20 +116,21 @@ def check_veloart():
         browser.close()
 
         if not match:
-            return None
+            return None, text
 
-        return datetime.fromisoformat(match.group(1) + " " + match.group(2))
+        found = datetime.fromisoformat(match.group(1) + " " + match.group(2))
+        return found, text
 
 
-notify("✅ Veloart monitor uruchomiony. Szukam terminu przed 2026-08-05 09:00.")
-print("Start Veloart monitora.", flush=True)
+notify("✅ Veloart Warszawa monitor uruchomiony. Szukam terminu przed 2026-08-05 09:00.")
+print("Start Veloart Warszawa monitora.", flush=True)
 
 while True:
     try:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{now}] Sprawdzam Veloart...", flush=True)
+        print(f"[{now}] Sprawdzam Veloart Warszawa...", flush=True)
 
-        found_datetime = check_veloart()
+        found_datetime, page_text = check_veloart()
 
         print("Najbliższy znaleziony termin:", found_datetime, flush=True)
 
@@ -110,16 +139,16 @@ while True:
 
             if signature != last_alert:
                 notify(
-                    "🚨 Veloart: pojawił się wcześniejszy termin!\n\n"
+                    "🚨 Veloart Warszawa: pojawił się wcześniejszy termin!\n\n"
                     f"Nowy termin: {found_datetime.strftime('%Y-%m-%d %H:%M')}\n"
-                    "Poprzedni punkt odniesienia: 2026-08-05 09:00\n\n"
+                    "Punkt odniesienia: 2026-08-05 09:00\n\n"
                     "Usługa: Bikefitting Kompleksowy + Serwis Roweru - Warszawa\n"
                     + URL
                 )
 
                 last_alert = signature
 
-        print("Sprawdzono Veloart.", flush=True)
+        print("Sprawdzono Veloart Warszawa.", flush=True)
 
     except Exception as e:
         print("Błąd Veloart:", e, flush=True)
