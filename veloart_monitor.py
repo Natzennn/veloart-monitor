@@ -31,9 +31,7 @@ def select_option_by_text(page, selector, wanted_text):
         """(select, wantedText) => {
             const options = Array.from(select.options);
             const option = options.find(o => o.textContent.trim().includes(wantedText));
-            if (!option) {
-                return null;
-            }
+            if (!option) return null;
             return option.value;
         }""",
         wanted_text,
@@ -48,6 +46,7 @@ def select_option_by_text(page, selector, wanted_text):
 
 def click_previous_month(page):
     nav = page.locator(".calendar-nav").bounding_box(timeout=10000)
+
     if not nav:
         raise Exception("Nie znaleziono calendar-nav")
 
@@ -77,21 +76,18 @@ def check_veloart():
 
         page.wait_for_selector(".bookero-plugin-form", timeout=30000)
 
-        # 1. wymuś Warszawę
         select_option_by_text(
             page,
             "#bookero-plugin-service-category",
             "Veloart Warszawa"
         )
 
-        # 2. wymuś konkretną usługę Warszawa
         select_option_by_text(
             page,
             "#bookero-plugin-service",
             "Bikefitting Kompleksowy + Serwis Roweru - Warszawa"
         )
 
-        # 3. wymuś pracownika Dowolny, jeśli pole istnieje
         try:
             select_option_by_text(
                 page,
@@ -103,7 +99,6 @@ def check_veloart():
 
         page.wait_for_selector(".calendar-nav", timeout=30000)
 
-        # kliknij poprzedni miesiąc, żeby pojawił się komunikat z najbliższym terminem
         click_previous_month(page)
 
         text = page.locator("body").inner_text(timeout=10000)
@@ -116,10 +111,9 @@ def check_veloart():
         browser.close()
 
         if not match:
-            return None, text
+            return None
 
-        found = datetime.fromisoformat(match.group(1) + " " + match.group(2))
-        return found, text
+        return datetime.fromisoformat(match.group(1) + " " + match.group(2))
 
 
 notify("✅ Veloart Warszawa monitor uruchomiony. Szukam terminu przed 2026-08-05 09:00.")
@@ -130,7 +124,7 @@ while True:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{now}] Sprawdzam Veloart Warszawa...", flush=True)
 
-        found_datetime, page_text = check_veloart()
+        found_datetime = check_veloart()
 
         print("Najbliższy znaleziony termin:", found_datetime, flush=True)
 
