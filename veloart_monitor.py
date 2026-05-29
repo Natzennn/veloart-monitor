@@ -24,6 +24,30 @@ def notify(text):
     )
 
 
+def click_previous_month(page):
+    selectors = [
+        ".calendar-nav div:first-child",
+        ".calendar-nav > div:first-child",
+        ".calendar-nav svg:first-child",
+        ".calendar-nav i:first-child",
+    ]
+
+    for selector in selectors:
+        try:
+            page.locator(selector).first.click(timeout=3000)
+            return True
+        except Exception:
+            pass
+
+    # awaryjnie klikamy po współrzędnych w lewą strzałkę kalendarza
+    nav = page.locator(".calendar-nav").bounding_box(timeout=10000)
+    if nav:
+        page.mouse.click(nav["x"] + 25, nav["y"] + nav["height"] / 2)
+        return True
+
+    return False
+
+
 def check_veloart():
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -37,7 +61,7 @@ def check_veloart():
         )
 
         page.goto(URL, wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(8000)
+        page.wait_for_timeout(10000)
 
         try:
             page.get_by_text("Rozumiem").click(timeout=3000)
@@ -47,9 +71,12 @@ def check_veloart():
         page.wait_for_selector(".bookero-plugin-form", timeout=30000)
         page.wait_for_selector(".calendar-nav", timeout=30000)
 
-        # klikamy strzałkę w lewo, żeby przejść do lipca
-        page.locator(".calendar-nav button").first.click(timeout=10000)
-        page.wait_for_timeout(3000)
+        clicked = click_previous_month(page)
+
+        if not clicked:
+            raise Exception("Nie udało się kliknąć strzałki poprzedniego miesiąca")
+
+        page.wait_for_timeout(4000)
 
         text = page.locator("body").inner_text(timeout=10000)
 
@@ -61,10 +88,9 @@ def check_veloart():
         browser.close()
 
         if not match:
-            return None, text
+            return None
 
-        found = datetime.fromisoformat(match.group(1) + " " + match.group(2))
-        return found, text
+        return datetime.fromisoformat(match.group(1) + " " + match.group(2))
 
 
 notify("✅ Veloart monitor uruchomiony. Szukam terminu przed 2026-08-05 09:00.")
@@ -75,7 +101,7 @@ while True:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{now}] Sprawdzam Veloart...", flush=True)
 
-        found_datetime, page_text = check_veloart()
+        found_datetime = check_veloart()
 
         print("Najbliższy znaleziony termin:", found_datetime, flush=True)
 
@@ -90,6 +116,7 @@ while True:
                     "Usługa: Bikefitting Kompleksowy + Serwis Roweru - Warszawa\n"
                     + URL
                 )
+
                 last_alert = signature
 
         print("Sprawdzono Veloart.", flush=True)
