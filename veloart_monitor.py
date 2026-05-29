@@ -8,7 +8,7 @@ from datetime import datetime
 URL = "https://veloart.cc/rezerwacje/"
 CHECK_EVERY_SECONDS = 180
 
-TARGET_DATETIME = datetime.fromisoformat("2026-08-05 09:00")
+TARGET_DATETIME = datetime.fromisoformat("2026-09-01 00:00")
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
